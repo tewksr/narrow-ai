@@ -1,0 +1,280 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NARROW AI</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #09090f;
+  color: #f5f5f7;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.app {
+  max-width: 850px;
+  margin: auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+header {
+  padding: 20px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #242431;
+}
+
+.logo {
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.logo span {
+  color: #a78bfa;
+}
+
+.status {
+  color: #8e8e9c;
+  font-size: 12px;
+}
+
+.welcome {
+  text-align: center;
+  margin: 50px 0 25px;
+}
+
+.welcome h1 {
+  font-size: 36px;
+}
+
+.welcome p {
+  color: #9999a9;
+}
+
+.chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 15px 0;
+}
+
+.message {
+  max-width: 85%;
+  padding: 15px;
+  border-radius: 18px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.user {
+  align-self: flex-end;
+  background: #27243a;
+}
+
+.ai {
+  align-self: flex-start;
+  background: #171720;
+  border: 1px solid #272732;
+}
+
+.input-area {
+  position: sticky;
+  bottom: 0;
+  padding: 12px 0 20px;
+  background: #09090f;
+}
+
+.input-box {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: #171720;
+  border: 1px solid #343442;
+  border-radius: 18px;
+}
+
+textarea {
+  flex: 1;
+  background: transparent;
+  color: white;
+  border: 0;
+  outline: 0;
+  resize: none;
+  font-size: 16px;
+  padding: 10px;
+  min-height: 45px;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 12px 18px;
+  color: white;
+  background: #7c3aed;
+  font-size: 15px;
+}
+
+button:disabled {
+  opacity: .5;
+}
+
+.clear {
+  background: #252530;
+  font-size: 13px;
+}
+
+footer {
+  text-align: center;
+  font-size: 12px;
+  color: #777783;
+  padding: 10px;
+}
+
+@media(max-width:600px) {
+  .app {
+    padding: 14px;
+  }
+
+  .welcome h1 {
+    font-size: 28px;
+  }
+
+  .message {
+    max-width: 95%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header>
+  <div class="logo">NARROW <span>AI</span></div>
+  <button class="clear" onclick="clearChat()">New chat</button>
+</header>
+
+<div class="welcome">
+  <h1>What can I help with?</h1>
+  <p>Your AI assistant for ideas, learning and creativity.</p>
+</div>
+
+<div class="chat" id="chat">
+  <div class="message ai">
+    Hi! I'm NARROW AI. Ask me anything ✨
+  </div>
+</div>
+
+<div class="input-area">
+  <div class="input-box">
+    <textarea id="input" placeholder="Ask anything..." rows="1"></textarea>
+    <button id="send" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<footer>
+  NARROW AI · Powered by OpenAI
+</footer>
+
+</div>
+
+<script>
+
+// ВАЖНО: сюда вставь ссылку своего Cloudflare Worker
+const API_URL = "https://frosty-night-14b0.t8gwwmjvzv.workers.dev/";
+
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const send = document.getElementById("send");
+
+let messages = [];
+
+function addMessage(text, type) {
+  const div = document.createElement("div");
+  div.className = "message " + type;
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  div.scrollIntoView({behavior:"smooth",block:"end"});
+}
+
+async function sendMessage() {
+  const text = input.value.trim();
+
+  if (!text || send.disabled) return;
+
+  input.value = "";
+  send.disabled = true;
+
+  messages.push({role:"user",content:text});
+  addMessage(text,"user");
+
+  const loading = document.createElement("div");
+  loading.className = "message ai";
+  loading.textContent = "NARROW AI is thinking...";
+  chat.appendChild(loading);
+
+  try {
+    const response = await fetch(API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({messages})
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Request failed");
+    }
+
+    const reply = data.reply || "No response";
+
+    messages.push({role:"assistant",content:reply});
+    loading.textContent = reply;
+
+  } catch(error) {
+    loading.textContent =
+      "Error: " + error.message +
+      "\nPlease try again.";
+
+    messages.pop();
+
+  } finally {
+    send.disabled = false;
+    input.focus();
+  }
+}
+
+function clearChat() {
+  messages = [];
+  chat.innerHTML = "";
+  addMessage("New conversation! How can I help?","ai");
+}
+
+input.addEventListener("keydown",function(event){
+  if(event.key === "Enter" && !event.shiftKey){
+    event.preventDefault();
+    sendMessage();
+  }
+});
+
+</script>
+
+</body>
+</html>
